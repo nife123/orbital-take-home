@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -42,7 +43,10 @@ class Message(Base):
     )
     role: Mapped[str] = mapped_column(String)  # "user", "assistant", "system"
     content: Mapped[str] = mapped_column(Text)
+    # Number of citations whose quote was verified against the cited page.
     sources_cited: Mapped[int] = mapped_column(Integer, default=0)
+    # Serialised Citation objects: [{"page": int, "quote": str, "verified": bool}]
+    citations: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")

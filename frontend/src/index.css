@@ -121,6 +121,32 @@ body {
 	margin: 0.75em 0;
 }
 
+/*
+ * Cited passage highlighting in the PDF text layer.
+ *
+ * react-pdf renders the text layer as transparent text positioned over the
+ * canvas, so a normal background would be invisible behind the page bitmap.
+ * The highlight is painted with a blend mode instead, letting the underlying
+ * glyphs show through.
+ */
+.react-pdf__Page__textContent mark.citation-highlight {
+	background-color: rgba(250, 204, 21, 0.45);
+	mix-blend-mode: multiply;
+	border-radius: 2px;
+	color: transparent;
+	animation: citation-flash 1.2s ease-out;
+}
+
+@keyframes citation-flash {
+	0%,
+	40% {
+		background-color: rgba(250, 204, 21, 0.85);
+	}
+	100% {
+		background-color: rgba(250, 204, 21, 0.45);
+	}
+}
+
 .prose th,
 .prose td {
 	border: 1px solid #e5e5e5;

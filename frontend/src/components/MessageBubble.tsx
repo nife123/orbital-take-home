@@ -1,14 +1,94 @@
 import { motion } from "framer-motion";
 import { Bot } from "lucide-react";
+import { useMemo } from "react";
 import { Streamdown } from "streamdown";
 import "streamdown/styles.css";
-import type { Message } from "../types";
+import { citationIndexFromHref, parseCitations } from "../lib/citations";
+import type { Citation, Message } from "../types";
+import { CitationPill } from "./CitationPill";
+
+interface CitedAnswerProps {
+	content: string;
+	serverCitations?: Citation[];
+	activeCitation: Citation | null;
+	onCitationSelect: (citation: Citation) => void;
+	streaming?: boolean;
+}
+
+/**
+ * Renders an assistant answer, swapping inline citation tokens for clickable
+ * pills. Citation tokens are rewritten to `#cite-N` links first, then the link
+ * renderer maps them back to the parsed citation by index.
+ */
+function CitedAnswer({
+	content,
+	serverCitations,
+	activeCitation,
+	onCitationSelect,
+	streaming,
+}: CitedAnswerProps) {
+	const { markdown, citations } = useMemo(
+		() => parseCitations(content, serverCitations),
+		[content, serverCitations],
+	);
+
+	const components = useMemo(
+		() => ({
+			a: ({
+				href,
+				children,
+				...props
+			}: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+				const index = citationIndexFromHref(href);
+				const citation = index === null ? undefined : citations[index];
+
+				if (!citation) {
+					return (
+						<a href={href} {...props}>
+							{children}
+						</a>
+					);
+				}
+
+				return (
+					<CitationPill
+						citation={citation}
+						active={
+							activeCitation?.page === citation.page &&
+							activeCitation?.quote === citation.quote
+						}
+						pending={!serverCitations}
+						onSelect={onCitationSelect}
+					/>
+				);
+			},
+		}),
+		[citations, activeCitation, onCitationSelect, serverCitations],
+	);
+
+	return (
+		<div className="prose">
+			<Streamdown
+				components={components}
+				mode={streaming ? "streaming" : "static"}
+			>
+				{markdown}
+			</Streamdown>
+		</div>
+	);
+}
 
 interface MessageBubbleProps {
 	message: Message;
+	activeCitation: Citation | null;
+	onCitationSelect: (citation: Citation) => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({
+	message,
+	activeCitation,
+	onCitationSelect,
+}: MessageBubbleProps) {
 	if (message.role === "system") {
 		return (
 			<motion.div
@@ -51,13 +131,15 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 				<Bot className="h-4 w-4 text-white" />
 			</div>
 			<div className="min-w-0 max-w-[80%]">
-				<div className="prose">
-					<Streamdown>{message.content}</Streamdown>
-				</div>
-				{message.sources_cited > 0 && (
-					<p className="mt-1.5 text-xs text-neutral-400">
-						{message.sources_cited} source
-						{message.sources_cited !== 1 ? "s" : ""} cited
+				<CitedAnswer
+					content={message.content}
+					serverCitations={message.citations}
+					activeCitation={activeCitation}
+					onCitationSelect={onCitationSelect}
+				/>
+				{message.citations?.length === 0 && (
+					<p className="mt-1.5 text-neutral-400 text-xs">
+						No sources cited — not grounded in the document
 					</p>
 				)}
 			</div>
@@ -67,9 +149,15 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
 interface StreamingBubbleProps {
 	content: string;
+	activeCitation: Citation | null;
+	onCitationSelect: (citation: Citation) => void;
 }
 
-export function StreamingBubble({ content }: StreamingBubbleProps) {
+export function StreamingBubble({
+	content,
+	activeCitation,
+	onCitationSelect,
+}: StreamingBubbleProps) {
 	return (
 		<div className="flex gap-3 py-1.5">
 			<div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-neutral-900">
@@ -77,9 +165,12 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
 			</div>
 			<div className="min-w-0 max-w-[80%]">
 				{content ? (
-					<div className="prose">
-						<Streamdown mode="streaming">{content}</Streamdown>
-					</div>
+					<CitedAnswer
+						content={content}
+						activeCitation={activeCitation}
+						onCitationSelect={onCitationSelect}
+						streaming
+					/>
 				) : (
 					<div className="flex items-center gap-1 py-2">
 						<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-neutral-400" />

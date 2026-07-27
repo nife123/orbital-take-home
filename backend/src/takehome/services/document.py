@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 
 import fitz  # PyMuPDF
@@ -13,6 +14,27 @@ from takehome.config import settings
 from takehome.db.models import Document
 
 logger = structlog.get_logger()
+
+# Matches the page markers written by upload_document() below.
+PAGE_MARKER_RE = re.compile(r"^--- Page (\d+) ---$", re.MULTILINE)
+
+
+def split_pages(extracted_text: str | None) -> dict[int, str]:
+    """Recover per-page text from a document's extracted text.
+
+    Extraction stores every page behind a `--- Page N ---` marker, so the page
+    boundaries survive in the stored blob and can be recovered without a schema
+    change. Returns a mapping of 1-based page number to that page's text.
+    """
+    if not extracted_text:
+        return {}
+
+    # Splitting on a capturing group yields [preamble, page_no, body, page_no, body, ...]
+    parts = PAGE_MARKER_RE.split(extracted_text)
+    pages: dict[int, str] = {}
+    for page_no, body in zip(parts[1::2], parts[2::2], strict=False):
+        pages[int(page_no)] = body.strip()
+    return pages
 
 
 async def upload_document(

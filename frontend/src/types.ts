@@ -6,12 +6,23 @@ export interface Conversation {
 	has_document: boolean;
 }
 
+/**
+ * A page-anchored reference emitted by the model. `verified` means the backend
+ * found the quote in the extracted text of the page it cites.
+ */
+export interface Citation {
+	page: number;
+	quote: string;
+	verified: boolean;
+}
+
 export interface Message {
 	id: string;
 	conversation_id: string;
 	role: "user" | "assistant" | "system";
 	content: string;
 	sources_cited: number;
+	citations?: Citation[];
 	created_at: string;
 }
 

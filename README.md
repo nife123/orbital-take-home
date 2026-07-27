@@ -1,10 +1,31 @@
 # Orbital — Product Engineering Take-Home
 
-Welcome! This is a take-home assessment for a Product Engineering role at Orbital.
+A document Q&A tool for commercial real estate lawyers. Upload a legal document
+(lease, title report, environmental assessment) and ask questions about it.
 
-You've been given a working baseline application: a document Q&A tool for commercial real estate lawyers. Users upload legal documents (leases, title reports, environmental assessments) and ask questions about them. The AI assistant answers questions grounded in the document content.
+## What I added: verifiable citations
 
-The app works, but it has limitations. Your job is to extend it.
+The baseline app reported how many sources an answer cited, but the number was a
+regex over the model's own prose — it counted the model *saying* "clause 14", so
+it went up when the model hallucinated. Nothing connected an answer to the
+document sitting in the reader panel.
+
+Now every factual claim carries a citation the lawyer can check in one click:
+
+- **The model cites a page and a verbatim quote** for each claim it makes.
+- **The backend verifies every quote** against the real text of the page it cites.
+- **Verified citations render as inline pills.** Clicking one jumps the reader to
+  that page and highlights the exact passage.
+- **Unverified quotes turn amber with a warning** — if the model cites something
+  that isn't on the page it named, the lawyer sees it immediately instead of
+  taking it on trust.
+- `sources_cited` now counts *verified* references.
+
+📹 **Loom walkthrough:** _<add link>_
+
+📄 **Reasoning and trade-offs:** [DECISIONS.md](DECISIONS.md)
+
+📝 **Part 1 (written question):** _<add markdown file>_
 
 ---
 
