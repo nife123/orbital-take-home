@@ -14,10 +14,11 @@ from starlette.responses import StreamingResponse
 from takehome.db.models import Message
 from takehome.db.session import get_session
 from takehome.services.conversation import get_conversation, update_conversation
-from takehome.services.document import get_document_for_conversation, split_pages
+from takehome.services.document import get_documents_for_conversation, split_pages
 from takehome.services.llm import (
     Citation,
-    chat_with_document,
+    DocumentContext,
+    chat_with_documents,
     generate_title,
     parse_citations,
     verify_citations,
@@ -114,12 +115,19 @@ async def send_message(
 
     logger.info("User message saved", conversation_id=conversation_id, message_id=user_message.id)
 
-    # Load document text for the conversation. Page text is resolved here, in the
+    # Load every document for the conversation. Page text is resolved here, in the
     # request session, because the streaming generator below runs after the session
     # is torn down and can only use plain values captured in its closure.
-    document = await get_document_for_conversation(session, conversation_id)
-    document_text: str | None = document.extracted_text if document else None
-    pages = split_pages(document_text)
+    documents = await get_documents_for_conversation(session, conversation_id)
+    document_contexts = [
+        DocumentContext(
+            id=doc.id,
+            name=doc.filename,
+            pages=split_pages(doc.extracted_text),
+            content_hash=doc.content_hash,
+        )
+        for doc in documents
+    ]
 
     # Load conversation history (exclude the message we just saved, it will be the user_message param)
     stmt = (
@@ -144,9 +152,9 @@ async def send_message(
         full_response = ""
 
         try:
-            async for chunk in chat_with_document(
+            async for chunk in chat_with_documents(
                 user_message=body.content,
-                document_text=document_text,
+                documents=document_contexts,
                 conversation_history=conversation_history,
             ):
                 full_response += chunk
@@ -169,9 +177,11 @@ async def send_message(
             event_data = json.dumps({"type": "content", "content": error_msg})
             yield f"data: {event_data}\n\n"
 
-        # Check every citation the model emitted against the real page text. Only
-        # citations whose quote actually appears on the cited page are counted.
-        citations = verify_citations(parse_citations(full_response), pages)
+        # Check every citation the model emitted against the real page text of the
+        # document it named. Only citations whose quote actually appears there count.
+        citations = verify_citations(
+            parse_citations(full_response, document_contexts), document_contexts
+        )
         sources = sum(1 for c in citations if c.verified)
 
         logger.info(

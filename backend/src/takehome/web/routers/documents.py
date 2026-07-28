@@ -11,7 +11,12 @@ from starlette.responses import FileResponse
 
 from takehome.db.session import get_session
 from takehome.services.conversation import get_conversation
-from takehome.services.document import get_document, upload_document
+from takehome.services.document import (
+    DuplicateDocumentError,
+    delete_document,
+    get_document,
+    upload_document,
+)
 
 logger = structlog.get_logger()
 
@@ -29,6 +34,7 @@ class DocumentOut(BaseModel):
     filename: str
     page_count: int
     uploaded_at: datetime
+    content_hash: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -50,8 +56,9 @@ async def upload_document_endpoint(
 ) -> DocumentOut:
     """Upload a PDF document for a conversation.
 
-    Only one document per conversation is allowed. Returns 409 if a document
-    already exists.
+    A conversation covers one deal, which carries many documents, so this can be
+    called repeatedly. Upload order determines the order documents are presented
+    to the model. Returns 409 if identical content is already attached.
     """
     # Verify the conversation exists
     conversation = await get_conversation(session, conversation_id)
@@ -60,11 +67,10 @@ async def upload_document_endpoint(
 
     try:
         document = await upload_document(session, conversation_id, file)
+    except DuplicateDocumentError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     except ValueError as e:
-        error_message = str(e)
-        if "already has a document" in error_message:
-            raise HTTPException(status_code=409, detail=error_message) from e
-        raise HTTPException(status_code=400, detail=error_message) from e
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     logger.info(
         "Document uploaded",
@@ -79,7 +85,19 @@ async def upload_document_endpoint(
         filename=document.filename,
         page_count=document.page_count,
         uploaded_at=document.uploaded_at,
+        content_hash=document.content_hash,
     )
+
+
+@router.delete("/api/documents/{document_id}", status_code=204)
+async def delete_document_endpoint(
+    document_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Remove a document from its conversation and delete the file."""
+    deleted = await delete_document(session, document_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Document not found")
 
 
 @router.get("/api/documents/{document_id}/content")

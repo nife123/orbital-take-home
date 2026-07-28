@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { shortDocumentLabel } from "../lib/citations";
 import type { Citation } from "../types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
@@ -27,8 +28,10 @@ export function CitationPill({
 	pending,
 	onSelect,
 }: CitationPillProps) {
-	const { page, quote, verified } = citation;
+	const { page, quote, verified, document_name } = citation;
 	const flagged = !pending && !verified;
+	// Absent while streaming, and on citations saved before multi-document.
+	const label = shortDocumentLabel(document_name);
 
 	return (
 		<Tooltip>
@@ -47,11 +50,18 @@ export function CitationPill({
 					}`}
 				>
 					{flagged && <AlertTriangle className="h-2.5 w-2.5" />}
-					p.{page}
+					{label && <span className="max-w-[9rem] truncate">{label}</span>}
+					{label && <span className="text-neutral-400">·</span>}
+					<span>p.{page}</span>
 				</button>
 			</TooltipTrigger>
 			<TooltipContent side="top" className="max-w-sm">
-				<p className="text-xs leading-relaxed">
+				{document_name && (
+					<p className="font-medium text-[11px] text-neutral-100">
+						{document_name}
+					</p>
+				)}
+				<p className="mt-0.5 text-xs leading-relaxed">
 					{pending ? (
 						<span className="text-neutral-400">Checking page {page}…</span>
 					) : flagged ? (

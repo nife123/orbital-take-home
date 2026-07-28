@@ -4,7 +4,16 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -55,6 +64,14 @@ class Message(Base):
 class Document(Base):
     __tablename__ = "documents"
 
+    # The same bytes twice in one deal is redundant, so it is rejected. Enforced
+    # here rather than by a check before insert, because a bare pre-check loses
+    # the race between two concurrent uploads. NULLs don't collide in Postgres,
+    # so rows predating the hash are unaffected.
+    __table_args__ = (
+        UniqueConstraint("conversation_id", "content_hash", name="uq_document_content"),
+    )
+
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: uuid.uuid4().hex[:16]
     )
@@ -63,6 +80,7 @@ class Document(Base):
     )
     filename: Mapped[str] = mapped_column(String)
     file_path: Mapped[str] = mapped_column(String)
+    content_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     page_count: Mapped[int] = mapped_column(Integer, default=0)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

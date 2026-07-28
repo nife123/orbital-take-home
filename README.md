@@ -3,22 +3,28 @@
 A document Q&A tool for commercial real estate lawyers. Upload a legal document
 (lease, title report, environmental assessment) and ask questions about it.
 
-## What I added: verifiable citations
+## What I added: verifiable citations, across every document in a deal
 
 The baseline app reported how many sources an answer cited, but the number was a
 regex over the model's own prose — it counted the model *saying* "clause 14", so
 it went up when the model hallucinated. Nothing connected an answer to the
-document sitting in the reader panel.
+document sitting in the reader panel. And a conversation could hold only one
+document, while a lawyer's unit of work is a *deal* carrying dozens.
 
 Now every factual claim carries a citation the lawyer can check in one click:
 
-- **The model cites a page and a verbatim quote** for each claim it makes.
-- **The backend verifies every quote** against the real text of the page it cites.
-- **Verified citations render as inline pills.** Clicking one jumps the reader to
-  that page and highlights the exact passage.
+- **The model cites a document, a page, and a verbatim quote** for each claim.
+- **The backend verifies every quote** against the real text of the page it cites,
+  in the document it named.
+- **Verified citations render as inline pills** — `Title Report · p.2`. Clicking
+  one opens that document at that page and highlights the exact passage.
 - **Unverified quotes turn amber with a warning** — if the model cites something
-  that isn't on the page it named, the lawyer sees it immediately instead of
-  taking it on trust.
+  that isn't where it claimed, the lawyer sees it immediately instead of taking
+  it on trust.
+- **Upload the whole deal at once.** Ask *"can the premises be used as a
+  restaurant?"* and the answer surfaces both the lease's Class E(g)(i)
+  restriction and the 1952 restrictive covenant on the title that binds
+  regardless — the one a lawyer reading only the lease would miss.
 - `sources_cited` now counts *verified* references.
 
 📹 **Loom walkthrough:** _<add link>_

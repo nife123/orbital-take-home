@@ -2,7 +2,7 @@ import { FileSearch } from "lucide-react";
 import { DocumentUpload } from "./DocumentUpload";
 
 interface EmptyStateProps {
-	onUpload: (file: File) => void;
+	onUpload: (files: File[]) => void;
 	uploading?: boolean;
 }
 
@@ -12,12 +12,13 @@ export function EmptyState({ onUpload, uploading }: EmptyStateProps) {
 			<div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900">
 				<FileSearch className="h-7 w-7 text-white" />
 			</div>
-			<h2 className="mb-2 text-lg font-semibold text-neutral-800">
-				Upload a document to get started
+			<h2 className="mb-2 font-semibold text-lg text-neutral-800">
+				Upload the documents for this deal
 			</h2>
-			<p className="mb-8 max-w-sm text-center text-sm text-neutral-500">
-				Ask questions about leases, title reports, contracts, and other legal
-				documents
+			<p className="mb-8 max-w-sm text-center text-neutral-500 text-sm">
+				Add the lease, title report, searches and surveys together — answers are
+				cited across every document, so restrictions that appear in more than
+				one place surface at once
 			</p>
 			<DocumentUpload onUpload={onUpload} uploading={uploading} />
 		</div>

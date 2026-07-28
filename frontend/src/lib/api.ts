@@ -7,10 +7,42 @@ import type {
 
 const BASE = "/api";
 
+/**
+ * A failed request, carrying the status so callers can tell apart outcomes that
+ * need different treatment — a duplicate upload (409) is not a failure the user
+ * has to fix, whereas an oversized file (400) is.
+ */
+export class ApiError extends Error {
+	readonly status: number;
+
+	constructor(status: number, message: string) {
+		super(message);
+		this.name = "ApiError";
+		this.status = status;
+	}
+}
+
+/**
+ * Pull a readable message out of a failed response.
+ *
+ * FastAPI puts the useful text in a `detail` field, and those messages are
+ * written for the user ("… has already been added to this conversation"), so
+ * they are worth surfacing verbatim rather than wrapping in status codes.
+ */
+async function errorMessage(response: Response): Promise<string> {
+	const text = await response.text().catch(() => "");
+	try {
+		const parsed = JSON.parse(text) as { detail?: unknown };
+		if (typeof parsed.detail === "string") return parsed.detail;
+	} catch {
+		// Not JSON — fall through to the raw body.
+	}
+	return text || `Request failed (${response.status})`;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
 	if (!response.ok) {
-		const text = await response.text().catch(() => "Unknown error");
-		throw new Error(`API error ${response.status}: ${text}`);
+		throw new ApiError(response.status, await errorMessage(response));
 	}
 	return response.json() as Promise<T>;
 }
@@ -34,8 +66,7 @@ export async function deleteConversation(id: string): Promise<void> {
 		method: "DELETE",
 	});
 	if (!res.ok) {
-		const text = await res.text().catch(() => "Unknown error");
-		throw new Error(`API error ${res.status}: ${text}`);
+		throw new ApiError(res.status, await errorMessage(res));
 	}
 }
 
@@ -63,8 +94,7 @@ export async function sendMessage(
 		body: JSON.stringify({ content }),
 	});
 	if (!res.ok) {
-		const text = await res.text().catch(() => "Unknown error");
-		throw new Error(`API error ${res.status}: ${text}`);
+		throw new ApiError(res.status, await errorMessage(res));
 	}
 	return res;
 }
@@ -80,6 +110,15 @@ export async function uploadDocument(
 		body: formData,
 	});
 	return handleResponse<Document>(res);
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+	const res = await fetch(`${BASE}/documents/${documentId}`, {
+		method: "DELETE",
+	});
+	if (!res.ok) {
+		throw new ApiError(res.status, await errorMessage(res));
+	}
 }
 
 export function getDocumentUrl(documentId: string): string {

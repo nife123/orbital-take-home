@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from takehome.db.models import Conversation
 from takehome.db.session import get_session
 from takehome.services.conversation import (
     create_conversation,
@@ -28,7 +29,7 @@ class ConversationListItem(BaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
-    has_document: bool
+    document_count: int
 
     model_config = {"from_attributes": True}
 
@@ -38,8 +39,7 @@ class ConversationDetail(BaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
-    has_document: bool
-    document: DocumentInfo | None = None
+    documents: list[DocumentInfo] = []
 
     model_config = {"from_attributes": True}
 
@@ -49,6 +49,9 @@ class DocumentInfo(BaseModel):
     filename: str
     page_count: int
     uploaded_at: datetime
+    # Lets the client re-link a citation whose document was deleted and
+    # re-uploaded, since the new row has a different id but the same bytes.
+    content_hash: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -59,6 +62,26 @@ class ConversationCreate(BaseModel):
 
 class ConversationUpdate(BaseModel):
     title: str
+
+
+def _to_detail(conversation: Conversation) -> ConversationDetail:
+    """Build the detail response, including every document on the conversation."""
+    return ConversationDetail(
+        id=conversation.id,
+        title=conversation.title,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
+        documents=[
+            DocumentInfo(
+                id=doc.id,
+                filename=doc.filename,
+                page_count=doc.page_count,
+                uploaded_at=doc.uploaded_at,
+                content_hash=doc.content_hash,
+            )
+            for doc in conversation.documents
+        ],
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -78,7 +101,7 @@ async def list_conversations_endpoint(
             title=c.title,
             created_at=c.created_at,
             updated_at=c.updated_at,
-            has_document=len(c.documents) > 0,
+            document_count=len(c.documents),
         )
         for c in conversations
     ]
@@ -95,8 +118,7 @@ async def create_conversation_endpoint(
         title=conversation.title,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
-        has_document=False,
-        document=None,
+        documents=[],
     )
 
 
@@ -110,24 +132,7 @@ async def get_conversation_endpoint(
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    doc_info: DocumentInfo | None = None
-    if conversation.documents:
-        doc = conversation.documents[0]
-        doc_info = DocumentInfo(
-            id=doc.id,
-            filename=doc.filename,
-            page_count=doc.page_count,
-            uploaded_at=doc.uploaded_at,
-        )
-
-    return ConversationDetail(
-        id=conversation.id,
-        title=conversation.title,
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
-        has_document=doc_info is not None,
-        document=doc_info,
-    )
+    return _to_detail(conversation)
 
 
 @router.patch("/{conversation_id}", response_model=ConversationDetail)
@@ -141,24 +146,7 @@ async def update_conversation_endpoint(
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    doc_info: DocumentInfo | None = None
-    if conversation.documents:
-        doc = conversation.documents[0]
-        doc_info = DocumentInfo(
-            id=doc.id,
-            filename=doc.filename,
-            page_count=doc.page_count,
-            uploaded_at=doc.uploaded_at,
-        )
-
-    return ConversationDetail(
-        id=conversation.id,
-        title=conversation.title,
-        created_at=conversation.created_at,
-        updated_at=conversation.updated_at,
-        has_document=doc_info is not None,
-        document=doc_info,
-    )
+    return _to_detail(conversation)
 
 
 @router.delete("/{conversation_id}", status_code=204)

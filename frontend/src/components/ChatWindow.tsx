@@ -9,12 +9,13 @@ interface ChatWindowProps {
 	messages: Message[];
 	loading: boolean;
 	error: string | null;
+	notice: string | null;
 	streaming: boolean;
 	streamingContent: string;
-	hasDocument: boolean;
+	documentCount: number;
 	conversationId: string | null;
 	onSend: (content: string) => void;
-	onUpload: (file: File) => void;
+	onUpload: (files: File[]) => void;
 	activeCitation: Citation | null;
 	onCitationSelect: (citation: Citation) => void;
 }
@@ -23,9 +24,10 @@ export function ChatWindow({
 	messages,
 	loading,
 	error,
+	notice,
 	streaming,
 	streamingContent,
-	hasDocument,
+	documentCount,
 	conversationId,
 	onSend,
 	onUpload,
@@ -65,15 +67,40 @@ export function ChatWindow({
 		);
 	}
 
+	// Shown in both branches below: uploads happen most often on an empty
+	// conversation, so the outcome has to be visible there too.
+	//
+	// A notice is deliberately not styled as an error. "Already in this
+	// conversation" means the user's intent is satisfied and there is nothing to
+	// fix, so it reports rather than alarms; red is reserved for uploads that
+	// genuinely did not happen and need the user to act.
+	const banners = (
+		<>
+			{error && (
+				<div className="mx-4 mt-2 rounded-lg bg-red-50 px-4 py-2 text-red-600 text-sm">
+					{error}
+				</div>
+			)}
+			{notice && (
+				<div className="mx-4 mt-2 rounded-lg bg-neutral-100 px-4 py-2 text-neutral-600 text-sm">
+					{notice}
+				</div>
+			)}
+		</>
+	);
+
 	// Empty conversation - show upload prompt
 	if (messages.length === 0 && !streaming) {
 		return (
 			<div className="flex flex-1 flex-col bg-white">
+				{banners}
 				<div className="flex flex-1 items-center justify-center">
-					{hasDocument ? (
+					{documentCount > 0 ? (
 						<div className="text-center">
-							<p className="text-sm text-neutral-500">
-								Document uploaded. Ask a question to get started.
+							<p className="text-neutral-500 text-sm">
+								{documentCount === 1
+									? "Document uploaded. Ask a question to get started."
+									: `${documentCount} documents uploaded. Ask a question across all of them.`}
 							</p>
 						</div>
 					) : (
@@ -84,7 +111,7 @@ export function ChatWindow({
 					onSend={onSend}
 					onUpload={onUpload}
 					disabled={streaming}
-					hasDocument={hasDocument}
+					documentCount={documentCount}
 				/>
 			</div>
 		);
@@ -92,11 +119,7 @@ export function ChatWindow({
 
 	return (
 		<div className="flex flex-1 flex-col bg-white">
-			{error && (
-				<div className="mx-4 mt-2 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">
-					{error}
-				</div>
-			)}
+			{banners}
 
 			<div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
 				<div className="mx-auto max-w-2xl space-y-1">
@@ -122,7 +145,7 @@ export function ChatWindow({
 				onSend={onSend}
 				onUpload={onUpload}
 				disabled={streaming}
-				hasDocument={hasDocument}
+				documentCount={documentCount}
 			/>
 		</div>
 	);

@@ -4,6 +4,13 @@ import { useState } from "react";
 import { relativeTime } from "../lib/utils";
 import type { Conversation } from "../types";
 import { Button } from "./ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 
 interface ChatSidebarProps {
@@ -24,6 +31,9 @@ export function ChatSidebar({
 	onDelete,
 }: ChatSidebarProps) {
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
+	// Deleting a conversation cascades to every document and message in it, so
+	// it asks first — and names what will be lost rather than saying "are you sure".
+	const [pendingDelete, setPendingDelete] = useState<Conversation | null>(null);
 
 	return (
 		<div className="flex h-full w-[250px] flex-shrink-0 flex-col border-r border-neutral-200 bg-white">
@@ -77,8 +87,12 @@ export function ChatSidebar({
 										<p className="truncate text-sm font-medium text-neutral-800">
 											{conversation.title}
 										</p>
-										<p className="mt-0.5 text-xs text-neutral-400">
+										<p className="mt-0.5 text-neutral-400 text-xs">
 											{relativeTime(conversation.updated_at)}
+											{conversation.document_count > 0 &&
+												` · ${conversation.document_count} doc${
+													conversation.document_count === 1 ? "" : "s"
+												}`}
 										</p>
 									</div>
 
@@ -89,7 +103,7 @@ export function ChatSidebar({
 												className="rounded p-1 text-neutral-400 hover:bg-neutral-200 hover:text-red-500"
 												onClick={(e) => {
 													e.stopPropagation();
-													onDelete(conversation.id);
+													setPendingDelete(conversation);
 												}}
 												title="Delete conversation"
 											>
@@ -103,6 +117,38 @@ export function ChatSidebar({
 					</AnimatePresence>
 				</div>
 			</ScrollArea>
+
+			<Dialog
+				open={pendingDelete !== null}
+				onOpenChange={(open) => !open && setPendingDelete(null)}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle>Delete “{pendingDelete?.title}”?</DialogTitle>
+						<DialogDescription>
+							{pendingDelete && pendingDelete.document_count > 0
+								? `This permanently removes the conversation, its full question history, and ${pendingDelete.document_count} uploaded document${
+										pendingDelete.document_count === 1 ? "" : "s"
+									}. This cannot be undone.`
+								: "This permanently removes the conversation and its full question history. This cannot be undone."}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex justify-end gap-2">
+						<Button variant="ghost" onClick={() => setPendingDelete(null)}>
+							Cancel
+						</Button>
+						<Button
+							className="bg-red-600 text-white hover:bg-red-700"
+							onClick={() => {
+								if (pendingDelete) onDelete(pendingDelete.id);
+								setPendingDelete(null);
+							}}
+						>
+							Delete
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

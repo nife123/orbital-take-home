@@ -1,10 +1,18 @@
-import { ChevronLeft, ChevronRight, FileText, Loader2, X } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronLeft,
+	ChevronRight,
+	FileText,
+	Loader2,
+	Trash2,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Document as PDFDocument, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { getDocumentUrl } from "../lib/api";
-import { normalizeForMatch } from "../lib/citations";
+import { normalizeForMatch, resolveCitationDocument } from "../lib/citations";
 import type { Citation, Document } from "../types";
 import { Button } from "./ui/button";
 
@@ -54,14 +62,20 @@ const MAX_WIDTH = 700;
 const DEFAULT_WIDTH = 400;
 
 interface DocumentViewerProps {
-	document: Document | null;
+	documents: Document[];
+	activeDocumentId: string | null;
 	activeCitation?: Citation | null;
+	onSelectDocument: (documentId: string) => void;
+	onDeleteDocument?: (documentId: string) => void;
 	onClearCitation?: () => void;
 }
 
 export function DocumentViewer({
-	document,
+	documents,
+	activeDocumentId,
 	activeCitation,
+	onSelectDocument,
+	onDeleteDocument,
 	onClearCitation,
 }: DocumentViewerProps) {
 	const [numPages, setNumPages] = useState<number>(0);
@@ -70,26 +84,66 @@ export function DocumentViewer({
 	const [pdfError, setPdfError] = useState<string | null>(null);
 	const [width, setWidth] = useState(DEFAULT_WIDTH);
 	const [dragging, setDragging] = useState(false);
+	const [pickerOpen, setPickerOpen] = useState(false);
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
+	// Removing one document is a smaller loss than deleting a whole deal, so it
+	// asks with a second click rather than a modal — but it still asks.
+	const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+		null,
+	);
+
+	// Don't leave a row armed indefinitely; a stale red button is a trap. Long
+	// enough to read and decide, and it fails safe either way — a late click
+	// re-arms rather than deletes.
+	useEffect(() => {
+		if (!confirmingDeleteId) return;
+		const timer = setTimeout(() => setConfirmingDeleteId(null), 5000);
+		return () => clearTimeout(timer);
+	}, [confirmingDeleteId]);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
+	// A citation can outlive the document it points at, since past answers keep
+	// their citations after a document is removed. Falling back to documents[0]
+	// would draw the citation banner over an unrelated file — exactly the
+	// mislead this feature exists to prevent — so say the document is gone.
+	//
+	// Resolution is by id then content hash, so a document that was deleted and
+	// re-uploaded is found again rather than being reported as missing.
+	const citedDocument = resolveCitationDocument(activeCitation, documents);
+	const citedDocumentMissing = !!activeCitation && !citedDocument;
+
+	// While a citation is active the reader shows the document that citation
+	// resolves to, derived here from current props rather than relying on the
+	// selection the click handler pushed up to App. Those two must never
+	// disagree: showing one document while the banner describes another is the
+	// precise failure this feature exists to prevent.
+	const document =
+		citedDocument ??
+		documents.find((doc) => doc.id === activeDocumentId) ??
+		documents[0] ??
+		null;
+
 	// Follow the cited page when a citation is clicked, while leaving the manual
-	// page controls free to move away from it afterwards.
+	// page controls free to move away from it afterwards. If the cited document
+	// is gone, stay put: its page number means nothing in whatever file is on
+	// screen instead.
 	useEffect(() => {
-		if (activeCitation) {
+		if (activeCitation && !citedDocumentMissing) {
 			setCurrentPage(activeCitation.page);
 			scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 		}
-	}, [activeCitation]);
+	}, [activeCitation, citedDocumentMissing]);
 
-	// Text of the page currently rendered, in text-layer order. Cleared on page
-	// change so a stale page's text can never be matched against the new page.
+	// Text of the page currently rendered, in text-layer order. Cleared whenever
+	// the page *or* the document changes, so one document's text can never be
+	// matched against another's page.
 	const [pageText, setPageText] = useState<string[]>([]);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: currentPage is the reset trigger, not a value read here
+	// biome-ignore lint/correctness/useExhaustiveDependencies: currentPage and document id are reset triggers, not values read here
 	useEffect(() => {
 		setPageText([]);
-	}, [currentPage]);
+	}, [currentPage, document?.id]);
 
 	const normalizedQuote = useMemo(
 		() => (activeCitation ? normalizeForMatch(activeCitation.quote) : null),
@@ -97,11 +151,24 @@ export function DocumentViewer({
 	);
 
 	const highlightedItems = useMemo(() => {
-		if (!normalizedQuote || currentPage !== activeCitation?.page) {
-			return new Set<number>();
-		}
+		// Only highlight when we are looking at exactly what was cited. Page
+		// numbers collide across documents, so the document has to match too —
+		// otherwise paging through a different file lights up unrelated text.
+		const citationIsHere =
+			activeCitation &&
+			currentPage === activeCitation.page &&
+			(!activeCitation.document_id || citedDocument?.id === document?.id);
+
+		if (!normalizedQuote || !citationIsHere) return new Set<number>();
 		return findQuoteItems(pageText, normalizedQuote);
-	}, [normalizedQuote, pageText, currentPage, activeCitation]);
+	}, [
+		normalizedQuote,
+		pageText,
+		currentPage,
+		activeCitation,
+		citedDocument,
+		document,
+	]);
 
 	const customTextRenderer = useCallback(
 		({ itemIndex, str }: { itemIndex: number; str: string }) =>
@@ -149,7 +216,7 @@ export function DocumentViewer({
 				className="flex h-full flex-shrink-0 flex-col items-center justify-center border-l border-neutral-200 bg-neutral-50"
 			>
 				<FileText className="mb-3 h-10 w-10 text-neutral-300" />
-				<p className="text-sm text-neutral-400">No document uploaded</p>
+				<p className="text-neutral-400 text-sm">No documents uploaded</p>
 			</div>
 		);
 	}
@@ -170,23 +237,100 @@ export function DocumentViewer({
 				onMouseDown={handleMouseDown}
 			/>
 
-			{/* Header */}
-			<div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-				<div className="min-w-0">
-					<p className="truncate text-sm font-medium text-neutral-800">
-						{document.filename}
-					</p>
-					<p className="text-xs text-neutral-400">
-						{document.page_count} page{document.page_count !== 1 ? "s" : ""}
-					</p>
-				</div>
+			{/*
+			 * Header — expands into the document list. Available even with a single
+			 * document, because that list is where a document is removed, and the
+			 * wrong file is most likely to be the first one uploaded.
+			 */}
+			<div className="border-neutral-100 border-b">
+				<button
+					type="button"
+					onClick={() => {
+						setPickerOpen((open) => !open);
+						setConfirmingDeleteId(null);
+					}}
+					className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-neutral-50"
+				>
+					<div className="min-w-0 flex-1">
+						<p className="truncate font-medium text-neutral-800 text-sm">
+							{document.filename}
+						</p>
+						<p className="text-neutral-400 text-xs">
+							{document.page_count} page{document.page_count !== 1 ? "s" : ""}
+							{documents.length > 1 && ` · ${documents.length} documents`}
+						</p>
+					</div>
+					{documents.length > 0 && (
+						<ChevronDown
+							className={`h-4 w-4 flex-shrink-0 text-neutral-400 transition-transform ${
+								pickerOpen ? "rotate-180" : ""
+							}`}
+						/>
+					)}
+				</button>
+
+				{pickerOpen && documents.length > 0 && (
+					<div className="max-h-56 overflow-y-auto border-neutral-100 border-t bg-neutral-50 py-1">
+						{documents.map((doc) => (
+							<button
+								key={doc.id}
+								type="button"
+								onClick={() => {
+									onSelectDocument(doc.id);
+									setCurrentPage(1);
+									setPickerOpen(false);
+								}}
+								onMouseEnter={() => setHoveredId(doc.id)}
+								onMouseLeave={() => setHoveredId(null)}
+								className={`group flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-neutral-100 ${
+									doc.id === document.id ? "bg-neutral-100" : ""
+								}`}
+							>
+								<FileText className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
+								<span className="min-w-0 flex-1 truncate text-neutral-700 text-xs">
+									{doc.filename}
+								</span>
+								{confirmingDeleteId === doc.id && onDeleteDocument ? (
+									<button
+										type="button"
+										className="flex-shrink-0 rounded bg-red-50 px-1.5 py-0.5 font-medium text-[11px] text-red-600 transition-colors hover:bg-red-100"
+										onClick={(e) => {
+											e.stopPropagation();
+											onDeleteDocument(doc.id);
+											setConfirmingDeleteId(null);
+										}}
+										title={`Confirm removing ${doc.filename}`}
+									>
+										Remove?
+									</button>
+								) : hoveredId === doc.id && onDeleteDocument ? (
+									<button
+										type="button"
+										className="flex-shrink-0 rounded p-0.5 text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-red-500"
+										onClick={(e) => {
+											e.stopPropagation();
+											setConfirmingDeleteId(doc.id);
+										}}
+										title={`Remove ${doc.filename}`}
+									>
+										<Trash2 className="h-3 w-3" />
+									</button>
+								) : (
+									<span className="flex-shrink-0 text-[11px] text-neutral-400">
+										{doc.page_count}p
+									</span>
+								)}
+							</button>
+						))}
+					</div>
+				)}
 			</div>
 
 			{/* Active citation banner */}
 			{activeCitation && (
 				<div
 					className={`flex items-start gap-2 border-b px-4 py-2.5 ${
-						activeCitation.verified
+						activeCitation.verified && !citedDocumentMissing
 							? "border-neutral-100 bg-neutral-50"
 							: "border-amber-100 bg-amber-50"
 					}`}
@@ -194,12 +338,16 @@ export function DocumentViewer({
 					<div className="min-w-0 flex-1">
 						<p
 							className={`font-medium text-[11px] uppercase tracking-wide ${
-								activeCitation.verified ? "text-neutral-400" : "text-amber-600"
+								activeCitation.verified && !citedDocumentMissing
+									? "text-neutral-400"
+									: "text-amber-600"
 							}`}
 						>
-							{activeCitation.verified
-								? `Cited from page ${activeCitation.page}`
-								: `Not found on page ${activeCitation.page}`}
+							{citedDocumentMissing
+								? `${activeCitation.document_name ?? "That document"} has been removed`
+								: activeCitation.verified
+									? `Cited from page ${activeCitation.page}`
+									: `Not found on page ${activeCitation.page}`}
 						</p>
 						<p className="mt-0.5 text-neutral-600 text-xs italic leading-relaxed">
 							“{activeCitation.quote}”
