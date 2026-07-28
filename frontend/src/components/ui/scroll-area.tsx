@@ -11,7 +11,15 @@ const ScrollArea = forwardRef<
 		className={cn("relative overflow-hidden", className)}
 		{...props}
 	>
-		<ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+		{/*
+		 * Radix sets `display: table` on the viewport's inner wrapper so content
+		 * can size itself for horizontal scrolling. A table shrink-wraps to its
+		 * content, so rows grow to fit the longest item instead of the viewport —
+		 * which defeats `truncate` and pushes anything right-aligned (the delete
+		 * button in the conversation list) outside the clipped area entirely.
+		 * This list only scrolls vertically, so force the wrapper back to block.
+		 */}
+		<ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] [&>div]:!block">
 			{children}
 		</ScrollAreaPrimitive.Viewport>
 		<ScrollBar />
