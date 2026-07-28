@@ -21,6 +21,7 @@ export default function App() {
 		create,
 		select,
 		remove,
+		rename,
 		refresh: refreshConversations,
 	} = useConversations();
 
@@ -128,6 +129,7 @@ export default function App() {
 					onSelect={select}
 					onCreate={handleCreate}
 					onDelete={remove}
+					onRename={rename}
 				/>
 
 				<ChatWindow

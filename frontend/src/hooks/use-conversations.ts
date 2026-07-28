@@ -63,6 +63,29 @@ export function useConversations() {
 		[selectedId],
 	);
 
+	const rename = useCallback(async (id: string, title: string) => {
+		const trimmed = title.trim();
+		if (!trimmed) return false;
+
+		try {
+			setError(null);
+			await api.renameConversation(id, trimmed);
+			// Patch the title only. The endpoint returns a ConversationDetail
+			// (carrying `documents`) while this list holds Conversation objects
+			// (carrying `document_count`), so replacing the item wholesale would
+			// drop the document count from the row.
+			setConversations((prev) =>
+				prev.map((c) => (c.id === id ? { ...c, title: trimmed } : c)),
+			);
+			return true;
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : "Failed to rename conversation",
+			);
+			return false;
+		}
+	}, []);
+
 	const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
 	return {
@@ -74,6 +97,7 @@ export function useConversations() {
 		create,
 		select,
 		remove,
+		rename,
 		refresh,
 	};
 }

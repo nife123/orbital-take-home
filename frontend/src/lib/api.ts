@@ -70,6 +70,20 @@ export async function deleteConversation(id: string): Promise<void> {
 	}
 }
 
+export async function renameConversation(
+	id: string,
+	title: string,
+): Promise<void> {
+	const res = await fetch(`${BASE}/conversations/${id}`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ title }),
+	});
+	if (!res.ok) {
+		throw new ApiError(res.status, await errorMessage(res));
+	}
+}
+
 export async function fetchConversation(
 	id: string,
 ): Promise<ConversationDetail> {
