@@ -5,7 +5,7 @@ A document Q&A tool for commercial real estate lawyers. Upload a legal document
 
 📹 **Loom walkthrough:** _<add link>_
 
-📝 **Part 1 (written question):** _<add markdown file>_
+📝 **Part 1 (written question):** [Part 1 — Technical Achievement](PART-1.md)
 
 ---
 
