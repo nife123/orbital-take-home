@@ -3,7 +3,7 @@
 A document Q&A tool for commercial real estate lawyers. Upload a legal document
 (lease, title report, environmental assessment) and ask questions about it.
 
-📹 **Loom walkthrough:** _https://www.loom.com/share/b4f57a5cd5934930a0e071f1033bacfc
+📹 **Loom walkthrough:** https://www.loom.com/share/b4f57a5cd5934930a0e071f1033bacfc
 
 📝 **Part 1 (written question):** [Part 1 — Technical Achievement](PART-1.md)
 
