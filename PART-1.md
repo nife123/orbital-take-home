@@ -6,19 +6,19 @@ Nova Learning is an online learning platform for primary school children. Last y
 
 I built the classroom on Daily.co’s call-object API : an SDK providing media transport and no user interface. A couple of things made the build-out technically challenging:
 
-**Distributed state with no server holding the truth.**A classroom has state: who is muted, who can hear the tutor, who has a hand raised, who is on question four etc. The state lives across the users’ browsers with no server owning it. I built the convergence myself – a message protocol over the Daily.co’s SDK data channel. In short, I built consensus across N browsers with no coordinator.
+**Distributed state with no server holding the truth.** A classroom has state: who is muted, who can hear the tutor, who has a hand raised, who is on question four etc. The state lives across the users’ browsers with no server owning it. I built the convergence myself – a message protocol over the Daily.co’s SDK data channel. In short, I built consensus across N browsers with no coordinator.
 
-**An asymmetric media topology that is no SDK's default.**Every video conferencing SDK assumes symmetry: everyone sees everyone. My requirement was deliberately asymmetric. There is no configuration flag for this. It meant disabling automatic track subscription entirely and managing which video & audio feeds of other participants that each participant was subscribed to, recomputed on every join and leave – logic I own, and that has to stay correct as people leave and join the classroom.
+**An asymmetric media topology that is no SDK's default.** Every video conferencing SDK assumes symmetry: everyone sees everyone. My requirement was deliberately asymmetric. There is no configuration flag for this. It meant disabling automatic track subscription entirely and managing which video & audio feeds of other participants that each participant was subscribed to, recomputed on every join and leave – logic I own, and that has to stay correct as people leave and join the classroom.
 
 The constraints were also as shaping as the technical problem:
 
-**Resource.**I was the single engineer working on this. I designed, built and shipped this solo – frontend, backend, infrastructure – while simultaneously being involved in running the rest of the platform.
+**Resource.** I was the single engineer working on this. I designed, built and shipped this solo – frontend, backend, infrastructure – while simultaneously being involved in running the rest of the platform.
 
-**Business.**Every other feature on the platform has near-zero marginal cost. This one carries real per-student-hour cost on two axes: video minutes and tutor wages. The feature had to lift retention by more than it cost to run, or it would’ve been net-negative.
+**Business.** Every other feature on the platform has near-zero marginal cost. This one carries real per-student-hour cost on two axes: video minutes and tutor wages. The feature had to lift retention by more than it cost to run, or it would’ve been net-negative.
 
-**Time.**At 30% monthly churn, the business was losing roughly a third of its customers every month while I built.
+**Time.** At 30% monthly churn, the business was losing roughly a third of its customers every month while I built.
 
-**Users.**Primary school children, on the available devices they had in their homes, with no ability to troubleshoot and no patience for classroom sessions that had bugs or issues.
+**Users.** Primary school children, on the available devices they had in their homes, with no ability to troubleshoot and no patience for classroom sessions that had bugs or issues.
 
 ### My approach
 
@@ -26,13 +26,13 @@ Architecturally, the backend owns classroom scheduling and allocation: it reconc
 
 The foundational decision was build vs buy and at which layer. There were 4 options that I could have gone with:
 
-**Raw WebRTC.**This would have taken several months of development on cross-browser media before delivering any product value.
+**Raw WebRTC.** This would have taken several months of development on cross-browser media before delivering any product value.
 
-**Zoom / Google Meets Links.**This would have meant no control over the experience. It would give you a meeting where everyone is a peer – no roles, no one-way visibility, no tutor control – and it takes children out of the product.
+**Zoom / Google Meets Links.** This would have meant no control over the experience. It would give you a meeting where everyone is a peer – no roles, no one-way visibility, no tutor control – and it takes children out of the product.
 
-**Daily.co's prebuilt UI.**Fastest to ship, but a prebuilt video conferencing UI cannot express ‘students can’t see each other’ or ‘tutor watches live quiz answers’
+**Daily.co's prebuilt UI.** Fastest to ship, but a prebuilt video conferencing UI cannot express ‘students can’t see each other’ or ‘tutor watches live quiz answers’
 
-**Daily.co's headless call-object API.**This is the approach I went with: I bought the commodity and built the product. It meant I took on substantially more implementation complexity – building the entire UI and control layer myself – in exchange for owning the classroom semantics. Buying the transport was the boring, correct decision; buying the UI would have killed the feature.
+**Daily.co's headless call-object API.** This is the approach I went with: I bought the commodity and built the product. It meant I took on substantially more implementation complexity – building the entire UI and control layer myself – in exchange for owning the classroom semantics. Buying the transport was the boring, correct decision; buying the UI would have killed the feature.
 
 ### Impact
 
