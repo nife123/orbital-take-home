@@ -51,7 +51,7 @@ be needed before a firm could put client documents near it.
 
 - **Neither delete confirmed.** Deleting a conversation cascades to every document
   and message in it, so it now asks and names what will be lost; removing a single
-  document uses a lighter inline confirm.
+  document from a chat uses a lighter inline confirm.
 - **Chats couldn't be renamed**, though the `PATCH` endpoint existed and nothing
   called it. Titles were generated once from the first question, so a poor first
   question left a matter misnamed permanently. I added functionality to rename chats.
