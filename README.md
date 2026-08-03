@@ -49,10 +49,14 @@ be needed before a firm could put client documents near it.
 
 ### Smaller fixes to the existing app
 
+- **Documents couldn't be removed individually.** With one document per conversation,
+  deleting the whole conversation was the only route. Now that a chat can hold several documents,
+  I added functionality to delete each document from a chat by opening the document list in the header
+  on the right, hovering over the document you want to delete, and clicking on the trash icon that comes up on the right.
 - **Neither delete confirmed.** Deleting a conversation cascades to every document
   and message in it, so it now asks and names what will be lost; removing a single
-  document from a chat uses a lighter inline confirm.
-- **Chats couldn't be renamed**, though the `PATCH` endpoint existed and nothing
+  document uses a lighter inline confirm.
+- **Chats couldn't be renamed,** though the `PATCH` endpoint existed and nothing
   called it. Titles were generated once from the first question, so a poor first
   question left a matter misnamed permanently. I added functionality to rename chats.
 
