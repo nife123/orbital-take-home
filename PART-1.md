@@ -6,7 +6,7 @@ Nova Learning is an online learning platform for primary school children. Last y
 
 I built the classroom on Daily.co’s call-object API : an SDK providing media transport and no user interface. A couple of things made the build-out technically challenging:
 
-**Distributed state with no server holding the truth.** A classroom has state: who is muted, who can hear the tutor, who has a hand raised, who is on question four etc. The state lives across the users’ browsers with no server owning it. I built the convergence myself – a message protocol over the Daily.co’s SDK data channel. In short, I built consensus across N browsers with no coordinator.
+**Distributed state with no server holding the truth.** A classroom has state: who is muted, who can hear the tutor, who has a hand raised, what lesson each child is on, who is on question four of a given lesson quiz etc. The state lives across the users’ browsers with no server owning it. I built the convergence myself – a message protocol over the Daily.co’s SDK data channel. In short, I built consensus across N browsers with no coordinator.
 
 **An asymmetric media topology that is no SDK's default.** Every video conferencing SDK assumes symmetry: everyone sees everyone. My requirement was deliberately asymmetric. There is no configuration flag for this. It meant disabling automatic track subscription entirely and managing which video & audio feeds of other participants that each participant was subscribed to, recomputed on every join and leave – logic I own, and that has to stay correct as people leave and join the classroom.
 
