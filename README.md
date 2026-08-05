@@ -42,7 +42,7 @@ more streamlined.
 
 **What I'd do next.** Now that citations are built, the two alternatives I mentioned above become cheaper, since locating a term, naming its
 page and verifying the quote is the hard part - so I'd add functionality that allows a lawyer to export parts of the chat they find useful to a 
-draft report and a key terms panel. The export to a draft report functionality would be useful as the lawyer's deliverable after reviewing the documents is a report, so being able to export important parts of the chat to a draft report would expedite that process. The key terms panel would be helpful as it immediately summarises the documents for a lawyer and draws their attention to the main points of the document. I'd also add optical character recognition (OCR) to deal with scanned documents as scanned documents are
+draft report and a key terms panel. The export to a draft report functionality would be useful as the lawyer's deliverable after reviewing the documents is a report, so being able to export important parts of the chat to a draft report would expedite that process. The key terms panel would be helpful as it immediately summarises the documents for a lawyer and draws their attention to the main points of the documents. I'd also add optical character recognition (OCR) to deal with scanned documents as scanned documents are
 likely to be common and they currently extract no text at all, so nothing in them can be cited or verified. Finally, for a production
 version of this, I'd add authentication and per-firm data isolation. These would 
 be needed before a firm could put client documents near it.
